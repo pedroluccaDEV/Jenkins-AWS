@@ -12,7 +12,6 @@ This CRUD App can manipulate a database which include a key and a pair of names,
 ___
 
 ## Implementation:
-
 One of the fancy part of web app is that it is seperated by layers.
 
 - The top layer is [frontend](./frontend), which utilises the [APIs](/docs) provided by backend. When implementing [frontend](./frontend), we can assume that all the [APIs](./docs) has already been implemented.
