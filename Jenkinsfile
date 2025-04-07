@@ -1,31 +1,63 @@
 pipeline {
-    agent any  // Roda em qualquer agente disponível
+    agent any
+
+    environment {
+        // Define variáveis de ambiente pra facilitar o uso dos paths
+        FRONTEND_DIR = 'frontend'
+        BACKEND_DIR = 'backend'
+        PYTHON = 'python3'
+    }
 
     stages {
-        stage('Checkout') {
+
+        stage('Clonar Repositório') {
             steps {
-                git branch: 'main', url: 'https://github.com/pedroluccaDEV/simple-crud.git'
+                // Clona o código do GitHub 
+                echo 'Clonando repositório...'
             }
         }
 
-        stage('Build') {
+        stage('Instalar dependências do frontend') {
             steps {
-                sh 'echo "Rodando o build..."'
-                sh 'make build'  // Substitui pelo comando do teu projeto
+                dir("${FRONTEND_DIR}") {
+                    // Instala os pacotes do React
+                    sh 'npm install'
+                }
             }
         }
 
-        stage('Test') {
+        stage('Build do frontend') {
             steps {
-                sh 'echo "Executando os testes..."'
-                sh 'make test'  // Substitui pelo comando dos testes
+                dir("${FRONTEND_DIR}") {
+                    // Executa o build do React
+                    sh 'npm run build'
+                }
             }
         }
 
-        stage('Deploy') {
+        stage('Instalar dependências do backend') {
             steps {
-                sh 'echo "Fazendo o deploy..."'
-                sh './deploy.sh'  // Se tiver um script de deploy
+                dir("${BACKEND_DIR}") {
+                    // Cria e ativa ambiente virtual, instala pacotes do Flask
+                    sh '''
+                    ${PYTHON} -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt
+                    '''
+                }
+            }
+        }
+
+        stage('Rodar o backend') {
+            steps {
+                dir("${BACKEND_DIR}") {
+                    // Sobe o Flask 
+                    sh '''
+                    . venv/bin/activate
+                    export FLASK_APP=app.py
+                    flask run --host=0.0.0.0 --port=5000 &
+                    '''
+                }
             }
         }
     }
