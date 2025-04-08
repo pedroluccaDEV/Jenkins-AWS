@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // Define variáveis de ambiente pra facilitar o uso dos paths
+        // Diretórios principais
         FRONTEND_DIR = 'frontend'
         BACKEND_DIR = 'backend'
         PYTHON = 'python3'
@@ -12,16 +12,21 @@ pipeline {
 
         stage('Clonar Repositório') {
             steps {
-                // Clona o código do GitHub 
                 echo 'Clonando repositório...'
+                // O checkout padrão já ocorre automaticamente, então essa etapa é simbólica
             }
         }
 
         stage('Instalar dependências do frontend') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    // Instala os pacotes do React
-                    sh 'npm install'
+                    echo 'Limpando e instalando dependências do frontend...'
+                    // Remove módulos antigos e limpa cache do npm
+                    sh '''
+                    rm -rf node_modules package-lock.json
+                    npm cache clean --force
+                    npm install
+                    '''
                 }
             }
         }
@@ -29,7 +34,7 @@ pipeline {
         stage('Build do frontend') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    // Executa o build do React
+                    echo 'Executando build do frontend...'
                     sh 'npm run build'
                 }
             }
@@ -38,10 +43,12 @@ pipeline {
         stage('Instalar dependências do backend') {
             steps {
                 dir("${BACKEND_DIR}") {
-                    // Cria e ativa ambiente virtual, instala pacotes do Flask
+                    echo 'Criando ambiente virtual e instalando dependências do backend...'
                     sh '''
+                    rm -rf venv
                     ${PYTHON} -m venv venv
                     . venv/bin/activate
+                    pip install --upgrade pip
                     pip install -r requirements.txt
                     '''
                 }
@@ -51,7 +58,7 @@ pipeline {
         stage('Rodar o backend') {
             steps {
                 dir("${BACKEND_DIR}") {
-                    // Sobe o Flask 
+                    echo 'Iniciando backend Flask...'
                     sh '''
                     . venv/bin/activate
                     export FLASK_APP=app.py
