@@ -22,16 +22,21 @@ pipeline {
         stage('Build do frontend') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    // NODE_OPTIONS tá setado no env, então aqui já tá safe
                     sh 'npm run build'
                 }
             }
         }
 
-        stage('Instalar dependências do backend') {
+        stage('Preparar ambiente do backend') {
             steps {
                 dir("${BACKEND_DIR}") {
                     sh """
+                        # Tenta instalar python3-venv se não estiver disponível
+                        if ! ${PYTHON} -m venv --help > /dev/null 2>&1; then
+                            echo "python3-venv não encontrado. Instalando..."
+                            sudo apt-get update && sudo apt-get install -y python3-venv
+                        fi
+
                         ${PYTHON} -m venv venv
                         venv/bin/pip install --upgrade pip
                         venv/bin/pip install -r requirements.txt
