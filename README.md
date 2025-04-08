@@ -10,13 +10,15 @@ Este documento descreve o processo de configuração de uma esteira de CI/CD uti
 **2.1 Jenkins local e a limitação do webhook**
 Inicialmente, o Jenkins foi instalado e configurado localmente. No entanto, foi identificado que para utilizar webhooks do GitHub e acionar jobs automaticamente a cada push, era necessário que o Jenkins estivesse acessível publicamente. Com isso, optou-se por hospedar o Jenkins em uma instância EC2 da AWS.
 
+<img src="img\jenkins-pipeline.png">
+
 **2.2 Escolha equivocada da região da instância**
 A primeira instância EC2 criada foi alocada na região "Ohio". Contudo, houve dificuldades de conexão, principalmente devido a restrições de rede e latência. A solução foi criar uma nova instância na região de São Paulo, mais próxima geograficamente, o que melhorou a estabilidade de conexão.
 
 **2.3 Problemas com o tipo de instância (t2.micro)**
 Visando economia, a instância t2.micro (com 1 vCPU e 1 GB de RAM) foi inicialmente escolhida. No entanto, durante a execução das builds, observou-se lentidão excessiva e falhas por falta de recursos. A solução foi trocar para uma instância t3.small, que oferece 2 vCPUs e 2 GB de RAM, possibilitando a execução dos jobs de forma mais eficiente.
 
-**[Inserir print da dashboard da instância EC2 e das métricas de uso de CPU/RAM]**
+<img src="C:\Users\est.pedrolucca\Projetos\Jenkins\simple-crud\img\t3samll-dashboard.png">
 
 **2.4 Dependências ausentes: npm e pip**
 Durante os primeiros testes de build, os scripts falhavam por falta do gerenciador de pacotes do Node.js (`npm`) e do Python (`pip`). Para corrigir isso, foi necessário instalar manualmente essas dependências na instância:
@@ -29,9 +31,6 @@ sudo apt-get install -y nodejs
 # Instalar Python3 e pip
 sudo apt install python3 python3-pip -y
 ```
-
-**[Inserir print do log de erro no Jenkins por falta do npm/pip e depois do sucesso]**
-
 ---
 
 **3. Instalação do Jenkins na EC2**
@@ -59,14 +58,14 @@ sudo ufw allow 8080
 sudo ufw enable
 ```
 
-**[Inserir print da tela de desbloqueio inicial do Jenkins e da interface Web]**
-
 ---
 
 **4. Configuração do Webhook no GitHub**
 Com o Jenkins acessível via IP público, foi possível configurar um webhook no GitHub para notificar o Jenkins a cada push. Foi utilizado o plugin "GitHub Integration" e configurado um pipeline declarativo para automatizar os processos de build.
 
-**[Inserir print da configuração do webhook no GitHub e do Jenkinsfile]**
+<img src="img\jenkins-triger.png">
+<img src="img\github-webhook.png">
+
 
 ---
 
@@ -76,5 +75,5 @@ O processo de implantação do Jenkins em ambiente cloud apresentou vários desa
 
 Para ambientes de produção ou com maior volume de builds, recomenda-se considerar instâncias mais robustas e aplicar boas práticas de segurança, como uso de HTTPS, autenticação com tokens e roles IAM.
 
-**[Inserir print do build final executando com sucesso]**
+
 
