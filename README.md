@@ -1,173 +1,80 @@
-# Automatização de CI/CD com Jenkins hospedado na AWS
+**Documentação: Implementação de CI/CD com Jenkins na AWS**
 
-## 🌐 Visão Geral
-Essa documentação descreve o processo completo de configuração de um pipeline de CI/CD utilizando o **Jenkins**, hospedado em uma instância **EC2** da **AWS**, para realizar automação de build e deploy de um repositório hospedado no **GitHub**.
-
----
-
-## ✅ Requisitos
-- Conta na AWS
-- Chave PEM de acesso a uma instância EC2 (Ubuntu)
-- Repositório GitHub com aplicação frontend/backend
-- Jenkinsfile configurado no repositório
+**1. Introdução**
+Este documento descreve o processo de configuração de uma esteira de CI/CD utilizando Jenkins para automatização de build de um repositório hospedado no GitHub. A solução foi implementada em uma instância EC2 da AWS e inclui as principais dificuldades encontradas ao longo do processo, bem como suas respectivas soluções.
 
 ---
 
-## 🌍 1. Criar instância EC2
-1. Acesse o **AWS Console** e crie uma instância EC2 com o **Ubuntu 22.04**.
-2. Configure o **Security Group** liberando as portas:
-   - **22** (SSH)
-   - **8080** (Jenkins)
-   - **80** e **443** (se for usar servidor web futuramente)
+**2. Processo de desenvolvimento**
 
-> **[PRINT 1: Tela de criação da instância EC2 com configuração de rede]**
+**2.1 Jenkins local e a limitação do webhook**
+Inicialmente, o Jenkins foi instalado e configurado localmente. No entanto, foi identificado que para utilizar webhooks do GitHub e acionar jobs automaticamente a cada push, era necessário que o Jenkins estivesse acessível publicamente. Com isso, optou-se por hospedar o Jenkins em uma instância EC2 da AWS.
 
----
+**2.2 Escolha equivocada da região da instância**
+A primeira instância EC2 criada foi alocada na região "Ohio". Contudo, houve dificuldades de conexão, principalmente devido a restrições de rede e latência. A solução foi criar uma nova instância na região de São Paulo, mais próxima geograficamente, o que melhorou a estabilidade de conexão.
 
-## ⚖️ 2. Conectar via SSH na instância
-No terminal:
+**2.3 Problemas com o tipo de instância (t2.micro)**
+Visando economia, a instância t2.micro (com 1 vCPU e 1 GB de RAM) foi inicialmente escolhida. No entanto, durante a execução das builds, observou-se lentidão excessiva e falhas por falta de recursos. A solução foi trocar para uma instância t3.small, que oferece 2 vCPUs e 2 GB de RAM, possibilitando a execução dos jobs de forma mais eficiente.
+
+**[Inserir print da dashboard da instância EC2 e das métricas de uso de CPU/RAM]**
+
+**2.4 Dependências ausentes: npm e pip**
+Durante os primeiros testes de build, os scripts falhavam por falta do gerenciador de pacotes do Node.js (`npm`) e do Python (`pip`). Para corrigir isso, foi necessário instalar manualmente essas dependências na instância:
+
 ```bash
-ssh -i "/caminho/para/sua/jenkins-key.pem" ubuntu@<IP_PUBLICO>
+# Instalar Node.js e npm
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Instalar Python3 e pip
+sudo apt install python3 python3-pip -y
 ```
 
+**[Inserir print do log de erro no Jenkins por falta do npm/pip e depois do sucesso]**
+
 ---
 
-## 🚀 3. Instalar o Jenkins na instância
-Execute os seguintes comandos:
+**3. Instalação do Jenkins na EC2**
+
 ```bash
-sudo apt update && sudo apt upgrade -y
+# Atualizar pacotes	sudo apt update && sudo apt upgrade -y
+
+# Instalar Java (necessário para Jenkins)
 sudo apt install openjdk-17-jre -y
 
-wget -O - https://pkg.jenkins.io/debian/jenkins.io-2023.key | sudo tee \/usr\/share\/keyrings\/jenkins-keyring.asc > \/dev\/null
-echo "deb [signed-by=\/usr\/share\/keyrings\/jenkins-keyring.asc] https://pkg.jenkins.io/debian binary/" | sudo tee \/etc\/apt\/sources.list.d\/jenkins.list > \/dev\/null
+# Adicionar o repositório do Jenkins
+wget -O - https://pkg.jenkins.io/debian/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
+# Atualizar e instalar Jenkins
 sudo apt update
 sudo apt install jenkins -y
 
+# Iniciar e habilitar Jenkins
 sudo systemctl start jenkins
 sudo systemctl enable jenkins
 
+# Liberar a porta 8080
 sudo ufw allow 8080
 sudo ufw enable
 ```
 
-> **[PRINT 2: Jenkins rodando na porta 8080]**
+**[Inserir print da tela de desbloqueio inicial do Jenkins e da interface Web]**
 
 ---
 
-## 🔐 4. Acessar o Jenkins via navegador
-Abra `http://<IP_PUBLICO>:8080`
+**4. Configuração do Webhook no GitHub**
+Com o Jenkins acessível via IP público, foi possível configurar um webhook no GitHub para notificar o Jenkins a cada push. Foi utilizado o plugin "GitHub Integration" e configurado um pipeline declarativo para automatizar os processos de build.
 
-Para desbloquear:
-```bash
-sudo cat /var/lib/jenkins/secrets/initialAdminPassword
-```
-
-> **[PRINT 3: Tela de setup inicial do Jenkins pedindo senha]**
-
-Complete a instalação com os plugins sugeridos e crie um usuário admin.
+**[Inserir print da configuração do webhook no GitHub e do Jenkinsfile]**
 
 ---
 
-## 📁 5. Criar um novo pipeline
-1. Clique em **"Criar novo Job"** > **Pipeline**
-2. Nomeie como quiser, ex: `simple-crud`
-3. Configure:
-   - Repositório GitHub: `https://github.com/seu-user/seu-repo`
-   - Branch: `main`
-   - Use o `Jenkinsfile` do repositório
+**5. Considerações finais**
 
-> **[PRINT 4: Tela de configuração do pipeline apontando pro GitHub]**
+O processo de implantação do Jenkins em ambiente cloud apresentou vários desafios, como limitações de rede, escolha inadequada de região e tipo de instância, bem como dependências de ambiente não previamente instaladas. No entanto, todas as questões foram contornadas, e o sistema de CI/CD encontra-se funcional para testes e projetos de pequeno porte.
 
----
+Para ambientes de produção ou com maior volume de builds, recomenda-se considerar instâncias mais robustas e aplicar boas práticas de segurança, como uso de HTTPS, autenticação com tokens e roles IAM.
 
-## 👨‍💼 6. Jenkinsfile (exemplo)
-```groovy
-pipeline {
-    agent any
-    
-    stages {
-        stage('Clonar Repositório') {
-            steps {
-                echo 'Clonando repositório...'
-            }
-        }
-
-        stage('Instalar dependências do frontend') {
-            steps {
-                dir('frontend') {
-                    sh 'npm install'
-                }
-            }
-        }
-
-        stage('Build do frontend') {
-            steps {
-                dir('frontend') {
-                    sh 'npm run build'
-                }
-            }
-        }
-
-        stage('Instalar dependências do backend') {
-            steps {
-                dir('backend') {
-                    sh 'pip install -r requirements.txt'
-                }
-            }
-        }
-
-        stage('Rodar o backend') {
-            steps {
-                dir('backend') {
-                    sh 'python app.py'
-                }
-            }
-        }
-    }
-}
-```
-
----
-
-## 🔄 7. Configurar Webhook no GitHub
-1. Acesse as configurações do seu repositório GitHub > **Webhooks**
-2. Adicione um webhook:
-   - Payload URL: `http://<IP_PUBLICO>:8080/github-webhook/`
-   - Content Type: `application/json`
-   - Events: **Just the push event**
-
-> **[PRINT 5: Tela de configuração do webhook no GitHub]**
-
----
-
-## 🚀 8. Testando o pipeline
-1. Faça um push no repositório
-2. O Jenkins irá iniciar o pipeline automaticamente
-
-> **[PRINT 6: Execução do build com sucesso no Jenkins]**
-
----
-
-## 📄 Extras: Instalando Node e Python
-Caso o Jenkins não encontre os comandos `npm` ou `python`, instale:
-
-```bash
-# Node.js e npm
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Python3 e pip
-sudo apt install -y python3 python3-pip
-```
-
----
-
-## 🎉 Conclusão
-Agora você tem um pipeline de CI/CD rodando de forma automatizada via Jenkins, integrado ao GitHub e hospedado na AWS! Isso garante entregas mais rápidas e seguras no seu projeto.
-
----
-
-Se quiser evoluir isso depois com deploy automatizado em servidor web ou containerização com Docker, tamo junto ☺️
-digita aí que eu ajudo!
+**[Inserir print do build final executando com sucesso]**
 
