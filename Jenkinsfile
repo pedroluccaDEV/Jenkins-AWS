@@ -2,31 +2,19 @@ pipeline {
     agent any
 
     environment {
-        // Diretórios principais
         FRONTEND_DIR = 'frontend'
         BACKEND_DIR = 'backend'
+        VENV_DIR = "${BACKEND_DIR}/venv"
         PYTHON = 'python3'
+        NODE_OPTIONS = '--openssl-legacy-provider'
     }
 
     stages {
 
-        stage('Clonar Repositório') {
-            steps {
-                echo 'Clonando repositório...'
-                // O checkout padrão já ocorre automaticamente, então essa etapa é simbólica
-            }
-        }
-
         stage('Instalar dependências do frontend') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    echo 'Limpando e instalando dependências do frontend...'
-                    // Remove módulos antigos e limpa cache do npm
-                    sh '''
-                    rm -rf node_modules package-lock.json
-                    npm cache clean --force
-                    npm install
-                    '''
+                    sh 'npm install'
                 }
             }
         }
@@ -34,7 +22,7 @@ pipeline {
         stage('Build do frontend') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    echo 'Executando build do frontend...'
+                    // NODE_OPTIONS tá setado no env, então aqui já tá safe
                     sh 'npm run build'
                 }
             }
@@ -43,29 +31,29 @@ pipeline {
         stage('Instalar dependências do backend') {
             steps {
                 dir("${BACKEND_DIR}") {
-                    echo 'Criando ambiente virtual e instalando dependências do backend...'
-                    sh '''
-                    rm -rf venv
-                    ${PYTHON} -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    '''
+                    sh """
+                        ${PYTHON} -m venv venv
+                        venv/bin/pip install --upgrade pip
+                        venv/bin/pip install -r requirements.txt
+                    """
                 }
             }
         }
 
-        stage('Rodar o backend') {
+        stage('Rodar o backend (debug)') {
             steps {
                 dir("${BACKEND_DIR}") {
-                    echo 'Iniciando backend Flask...'
-                    sh '''
-                    . venv/bin/activate
-                    export FLASK_APP=app.py
-                    flask run --host=0.0.0.0 --port=5000 &
-                    '''
+                    sh """
+                        nohup venv/bin/flask run --host=0.0.0.0 --port=5000 > flask.log 2>&1 &
+                    """
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finalizada.'
         }
     }
 }
